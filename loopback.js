@@ -6,6 +6,7 @@ let codecModule;
 Module().then((module) => {
   console.log("Initialized codec's wasmModule.");
   codecModule = module;
+  updateCallButtonState();
 }).catch(e => {
   console.log(`Module() error: ${e.name} message: ${e.message}`);
 });
@@ -21,6 +22,7 @@ const historyTBody = document.getElementById('historyTBody');
 startButton.onclick = start;
 callButton.onclick = call;
 hangupButton.onclick = hangup;
+codecSelect.onchange = updateCallButtonState;
 
 let localStream;
 let pc1;
@@ -34,18 +36,28 @@ let lastTimestamp;
 let lastBytesSent;
 let interval;
 
+function updateCallButtonState() {
+  callButton.disabled = !localStream || !!pc1 ||
+      (codecSelect.value === "lyra" && !codecModule);
+}
+
 async function start() {
   startButton.disabled = true;
   navigator.mediaDevices.getUserMedia({
     audio: { sampleRate: 16000 },
     video: false
   }).then((stream) => {
-    callButton.disabled = false;
     localStream = stream;
+    updateCallButtonState();
   });
 }
 
 async function call() {
+  updateCallButtonState();
+  if (callButton.disabled) {
+    return;
+  }
+
   codecSelect.disabled = true;
   callButton.disabled = true;
   hangupButton.disabled = false;
@@ -140,8 +152,8 @@ async function hangup() {
   }
 
   hangupButton.disabled = true;
-  callButton.disabled = false;
   codecSelect.disabled = false;
+  updateCallButtonState();
 }
 
 function appendTD(tr, text) {

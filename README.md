@@ -18,6 +18,17 @@ And Open the following URL
 
 http://localhost:8000/loopback.html
 
+## Tests
+
+Run the codec-readiness regression tests with Node.js 18 or newer:
+
+```sh
+node --test test/codec-readiness.test.cjs
+```
+
+These tests use controlled browser and codec dependencies. They do not replace
+testing real WebRTC audio and the WASM codec in a browser.
+
 ## Acknowledgments
 
 Thanks to [the team that developed Lyra](https://ai.googleblog.com/2021/02/lyra-new-very-low-bitrate-codec-for.html) and to [mayitayew for making it work with WASM](https://github.com/mayitayew/soundstream-wasm).
