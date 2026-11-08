@@ -57,15 +57,34 @@ async function call() {
   lastBytesSent = null;
 
   const useLyra = codecSelect.value === "lyra";
-  pc1 = new RTCPeerConnection({ encodedInsertableStreams: useLyra });
-  pc2 = new RTCPeerConnection({ encodedInsertableStreams: useLyra });
-  pc1.onicecandidate = (e) => {
-    pc2.addIceCandidate(e.candidate)
+  const caller = pc1 = new RTCPeerConnection({ encodedInsertableStreams: useLyra });
+  const callee = pc2 = new RTCPeerConnection({ encodedInsertableStreams: useLyra });
+  const isCurrentCall = () => pc1 === caller && pc2 === callee;
+  const onNegotiationError = (e) => {
+    if (isCurrentCall()) {
+      console.log(`Call error: ${e.name} message: ${e.message}`);
+      hangup();
+    }
   };
-  pc2.onicecandidate = (e) => {
-    pc1.addIceCandidate(e.candidate)
+  const onIceError = (e) => {
+    if (isCurrentCall()) {
+      console.log(`ICE error: ${e.name} message: ${e.message}`);
+    }
   };
-  pc2.ontrack = (e) => {
+  caller.onicecandidate = (e) => {
+    if (isCurrentCall()) {
+      callee.addIceCandidate(e.candidate).catch(onIceError);
+    }
+  };
+  callee.onicecandidate = (e) => {
+    if (isCurrentCall()) {
+      caller.addIceCandidate(e.candidate).catch(onIceError);
+    }
+  };
+  callee.ontrack = (e) => {
+    if (!isCurrentCall()) {
+      return;
+    }
     if (audioOutput.srcObject === e.streams[0]) {
       return;
     }
@@ -101,20 +120,24 @@ async function call() {
     const transceiver = pc1.getTransceivers().find(t => t.sender && t.sender.track === localStream.getAudioTracks()[0]);
     transceiver.setCodecPreferences(codecs);
   }
-  pc1.createOffer().then((offer) => {
-   const modifiedOffer = modifyDesc(offer);
-    pc1.setLocalDescription(modifiedOffer).then(() => {
-      return pc2.setRemoteDescription(modifiedOffer);
-    }).then(() => {
-     return pc2.createAnswer();
-    }).then((answer) => {
-      const modifiedAnswer = modifyDesc(answer);
-      pc2.setLocalDescription(modifiedAnswer).then(() => {
-        pc1.setRemoteDescription(modifiedAnswer);
-      });
-    });
-  });
   interval = setInterval(updateStat, 1000);
+  try {
+    const offer = await caller.createOffer();
+    if (!isCurrentCall()) return;
+    const modifiedOffer = modifyDesc(offer);
+    await caller.setLocalDescription(modifiedOffer);
+    if (!isCurrentCall()) return;
+    await callee.setRemoteDescription(modifiedOffer);
+    if (!isCurrentCall()) return;
+    const answer = await callee.createAnswer();
+    if (!isCurrentCall()) return;
+    const modifiedAnswer = modifyDesc(answer);
+    await callee.setLocalDescription(modifiedAnswer);
+    if (!isCurrentCall()) return;
+    await caller.setRemoteDescription(modifiedAnswer);
+  } catch (e) {
+    onNegotiationError(e);
+  }
 }
 
 async function hangup() {
