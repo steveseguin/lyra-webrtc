@@ -20,10 +20,10 @@ http://localhost:8000/loopback.html
 
 ## Tests
 
-Run the codec-readiness regression tests with Node.js 18 or newer:
+Run the regression tests with Node.js 18 or newer:
 
 ```sh
-node --test test/codec-readiness.test.cjs
+node --test test/*.test.cjs
 ```
 
 These tests use controlled browser and codec dependencies. They do not replace
